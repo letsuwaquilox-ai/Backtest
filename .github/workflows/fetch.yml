@@ -1,13 +1,7 @@
 name: download-candles
-on:
-  schedule:
-    - cron: "30 4 * * *"
-  workflow_dispatch: {}
-concurrency:
-  group: memebot-data
-  cancel-in-progress: false
-permissions:
-  contents: write
+on: {workflow_dispatch: {}, schedule: [{cron: '30 4 * * *'}]}
+concurrency: {group: memebot-data, cancel-in-progress: false}
+permissions: {contents: write}
 jobs:
   fetch:
     runs-on: ubuntu-latest
@@ -18,8 +12,13 @@ jobs:
         with:
           python-version: "3.11"
       - name: Download candles for pools older than 24h (resumable)
-        run: timeout 165m python history_fetch.py fetch --pools data/pools_seen.csv --out data/candles --days 2 --min-age-h 24 --min-liq-usd 5000 --preset public
-        continue-on-error: true
+        run: |
+          mkdir -p data
+          if [ -f data/pools_seen.csv ]; then
+            timeout 165m python history_fetch.py fetch --pools data/pools_seen.csv --out data/candles --days 2 --min-age-h 24 --min-liq-usd 5000 --preset public || true
+          else
+            echo "No pool list yet; nothing to download."
+          fi
       - name: Save to the repo
         if: always()
         run: |
